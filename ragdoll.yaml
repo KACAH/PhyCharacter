@@ -1,0 +1,235 @@
+root_part: waist
+root_offset: [0, 0.7, 0]
+
+parts:
+    waist:
+        bone: Waist
+        height: 0.6
+        width: 1
+        depth: 0.6
+        mass: 1
+
+    stomach:
+        bone: Stomach
+        height: 0.5
+        width: 0.9
+        depth: 0.6
+        mass: 1
+
+    chest:
+        bone: Chest
+        height: 0.5
+        width: 1.1
+        depth: 0.7
+        mass: 1
+
+    neck:
+        bone: Neck
+        height: 0.2
+        width: 0.5
+        depth: 0.5
+        mass: 0.1
+
+    head:
+        bone: Head
+        height: 0.5
+        width: 0.5
+        depth: 0.5
+        mass: 0.1
+
+    humerus_r:
+        bone: Humerus.R
+        height: 1
+        width: 0.5
+        depth: 0.5
+        mass: 0.2
+
+    humerus_l:
+        bone: Humerus.L
+        height: 1
+        width: 0.5
+        depth: 0.5
+        mass: 0.2
+
+    ulna_r:
+        bone: Ulna.R
+        height: 0.5
+        width: 0.5
+        depth: 0.5
+        mass: 0.1
+
+    ulna_l:
+        bone: Ulna.L
+        height: 0.5
+        width: 0.5
+        depth: 0.5
+        mass: 0.1
+
+    hand_r:
+        bone: Hand.R
+        height: 0.5
+        width: 0.5
+        depth: 0.5
+        mass: 0.1
+
+    hand_l:
+        bone: Hand.L
+        height: 0.5
+        width: 0.5
+        depth: 0.5
+        mass: 0.1
+
+    thigh_r:
+        bone: Thigh.R
+        height: 0.8
+        width: 0.5
+        depth: 0.5
+        mass: 0.2
+
+    thigh_l:
+        bone: Thigh.L
+        height: 0.8
+        width: 0.5
+        depth: 0.5
+        mass: 0.2
+
+    calf_r:
+        bone: Calf.R
+        height: 0.7
+        width: 0.5
+        depth: 0.5
+        mass: 0.2
+
+    calf_l:
+        bone: Calf.L
+        height: 0.7
+        width: 0.5
+        depth: 0.5
+        mass: 0.2
+
+    foot_r:
+        bone: Foot.R
+        height: 0.8
+        width: 0.5
+        depth: 0.5
+        mass: 0.2
+
+    foot_l:
+        bone: Foot.L
+        height: 0.8
+        width: 0.5
+        depth: 0.5
+        mass: 0.2
+
+joints:
+    waist_stomach:
+        type: fixed
+        partA: waist
+        partB: stomach
+        pointA: [0, 0.8, 0]
+        pointB: [0, -0.5, 0]
+
+    stomach_chest:
+        type: fixed
+        partA: stomach
+        partB: chest
+        pointA: [0, 0.6, -0.2]
+        pointB: [0, -0.5, 0]
+
+    chest_neck:
+        type: fixed
+        partA: chest
+        partB: neck
+        pointA: [0, 0.5, -0.4]
+        pointB: [0, -0.2, 0]
+
+    neck_head:
+        type: fixed
+        partA: neck
+        partB: head
+        pointA: [0, 0.2, 0]
+        pointB: [0, -0.5, 0]
+
+    chest_humerus_r:
+        type: rotating
+        partA: chest
+        partB: humerus_r
+        pointA: [1.2, 0.7, 0]
+        pointB: [0, -1.5, 0]
+
+    chest_humerus_l:
+        type: rotating
+        partA: chest
+        partB: humerus_l
+        pointA: [-1.2, 0.7, 0]
+        pointB: [0, -1.5, 0]
+
+    humerus_ulna_r:
+        type: rotating
+        partA: humerus_r
+        partB: ulna_r
+        pointA: [0, 1, 0]
+        pointB: [0, -0.5, 0]
+
+    humerus_ulna_l:
+        type: rotating
+        partA: humerus_l
+        partB: ulna_l
+        pointA: [0, 1, 0]
+        pointB: [0, -0.5, 0]
+
+    ulna_hand_r:
+        type: rotating
+        partA: ulna_r
+        partB: hand_r
+        pointA: [0, 0.5, 0]
+        pointB: [0, -0.5, 0]
+
+    ulna_hand_l:
+        type: rotating
+        partA: ulna_l
+        partB: hand_l
+        pointA: [0, 0.5, 0]
+        pointB: [0, -0.5, 0]
+
+    waist_thigh_r:
+        type: rotating
+        partA: waist
+        partB: thigh_r
+        pointA: [-0.5, -0.6, 0]
+        pointB: [0, -0.8, 0]
+
+    waist_thigh_l:
+        type: rotating
+        partA: waist
+        partB: thigh_l
+        pointA: [0.5, -0.6, 0]
+        pointB: [0, -0.8, 0]
+
+    thigh_calf_r:
+        type: rotating
+        partA: thigh_r
+        partB: calf_r
+        pointA: [0, 0.7, 0]
+        pointB: [0, -0.7, 0]
+
+    thigh_calf_l:
+        type: rotating
+        partA: thigh_l
+        partB: calf_l
+        pointA: [0, 0.7, 0]
+        pointB: [0, -0.7, 0]
+
+    calf_foot_r:
+        type: rotating
+        partA: calf_r
+        partB: foot_r
+        pointA: [0, 0.6, 0]
+        pointB: [0, -0.6, 0]
+
+    calf_foot_l:
+        type: rotating
+        partA: calf_l
+        partB: foot_l
+        pointA: [0, 0.6, 0]
+        pointB: [0, -0.6, 0]
