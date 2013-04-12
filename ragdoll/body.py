@@ -8,53 +8,202 @@ from ogre.physics import OgreBulletC, OgreBulletD
 from collision_masks import *
 
 
+
+id = 0
+buffer = []
+
+def create_debug_point(app, pos):
+    global id
+    global buffer
+
+    _en = app.sceneManager.createEntity("en" + str(id), "sphere.mesh")
+    id += 1
+    _node = app.sceneManager.getRootSceneNode().createChildSceneNode()
+    _node.attachObject(_en)
+    _node.scale(0.002, 0.002, 0.002)
+    _node.setPosition(pos)
+    buffer.extend((_en, _node))
+
+
+class Dummy(object):
+    """Empty rigid body. Used as ragdoll parts controller."""
+
+    MASS = 1
+
+    def __init__(self, app, pos, rot):
+        self.app = app
+
+        self.shape = bullet.btEmptyShape()
+        _tr = bullet.btTransform()
+        _tr.setIdentity()
+        _tr.setOrigin(bullet.btVector3(pos.x, pos.y, pos.z))
+        _tr.setRotation(bullet.btQuaternion(rot.x, rot.y, rot.z, rot.w))
+
+        _local_inertia = bullet.btVector3(0,0,0)
+        self.shape.calculateLocalInertia(self.MASS, _local_inertia)
+
+        self.motion_state = bullet.btDefaultMotionState(_tr)
+
+        self.rb_info = bullet.btRigidBody.btRigidBodyConstructionInfo(
+            self.MASS, self.motion_state, self.shape, _local_inertia)
+        self.body = bullet.btRigidBody(self.rb_info)
+        self.body.setCollisionFlags(self.body.getCollisionFlags() \
+            | bullet.btCollisionObject.CF_KINEMATIC_OBJECT)
+
+        self.app.world.getBulletDynamicsWorld().addRigidBody(self.body)
+
+    def setPosition(self, pos):
+        _tr = bullet.btTransform()
+        self.body.getMotionState().getWorldTransform(_tr)
+        _tr.setOrigin(bullet.btVector3(pos.x, pos.y, pos.z))
+        self.body.getMotionState().setWorldTransform(_tr)
+        #self.body.setPosition(bullet.btVector3(pos.x, pos.y, pos.z))
+
+    def setOrientation(self, rot):
+        _tr = bullet.btTransform()
+        self.body.getMotionState().getWorldTransform(_tr)
+        _tr.setRotation(bullet.btQuaternion(rot.x, rot.y, rot.z, rot.w))
+        self.body.getMotionState().setWorldTransform(_tr)
+        #self.body.setOrientation(bullet.btQuaternion(rot.x, rot.y, rot.z, rot.w))
+
+
 class RagdollPart(object):
     """One element of ragdoll body"""
 
-    def __init__(self, name, app, params, bone, pos):
+    def __init__(self, name, app, params, node, bone_real, bone_phantom):
         self.name = name
         self.app = app
-        self.bone = bone
+        self.parent_node = node
+        self.bone = bone_real
+        self.phantom = bone_phantom
+        self.mass = params["mass"]
         self.width = params["width"]
         self.height = params["height"]
         self.depth = params["depth"]
+        self.offset = Ogre.Vector3(0, self.height, 0) \
+            + Ogre.Vector3(*params.get("offset", (0, 0, 0)))
 
+        self.create_body()
+        self.create_control_joint()
+
+        #Temporaly and only for testing
+        #if name in ("chest", ):
+        #self.ph_body.setKinematicObject(True)
+
+        self.ogre_global_bind_orientation = \
+            self.phantom._getDerivedOrientation()
+        self.physics_bind_orientation_inverse = \
+            self.ph_body.getWorldOrientation().Inverse()
+
+    def create_body(self):
         self.shape = OgreBulletC.BoxCollisionShape(
             Ogre.Vector3(self.width, self.height, self.depth)
         )
-        self.ph_body = OgreBulletD.RigidBody(
-            params["bone"], self.app.world, RAGDOLL_MASK, RAGDOLL_COLLIDE_WITH
-        )
+
+        self.ph_body = OgreBulletD.RigidBody(self.name, self.app.world)
         self.node = \
             self.app.sceneManager.getRootSceneNode().createChildSceneNode()
 
-        self.offset = Ogre.Vector3(*params.get("offset", [0, 0, 0]))
-        _pos = pos + bone._getDerivedPosition()
-        _orient = bone._getDerivedOrientation()
+        _orient = self.bone._getDerivedOrientation()
+        _pos = self.parent_node._getDerivedPosition() \
+            + self.bone._getDerivedPosition() + _orient * self.offset
         self.ph_body.setShape(self.node, self.shape,
-            0.3, 0.3, params["mass"],
+            0.3, 0.3, self.mass,
             _pos, _orient
         )
-        self.ph_body.setKinematicObject(True)
 
-        self.ogre_global_bind_orientation = bone._getDerivedOrientation()
-        self.physics_bind_orientation_inverse = \
-            self.ph_body.getWorldOrientation().Inverse();
+    def create_control_joint(self):
+        self.dummy = Dummy(self.app, self.getPosition(), self.getOrientation())
+        _pos = self.getLinkPos()
+
+        def _create_simple_tr():
+            _tr = bullet.btTransform()
+            _tr.setIdentity()
+            _tr.setOrigin(bullet.btVector3(0, 0, 0))
+            _tr.setRotation(bullet.btQuaternion(0, 0, 0, 1))
+            return _tr
+
+        _tr1 = _create_simple_tr()
+        _tr2 = _create_simple_tr()
+
+        self.control_joint = bullet.btConeTwistConstraint(
+            self.ph_body.getBulletRigidBody(), self.dummy.body, _tr1, _tr2)
+        self.control_joint.setLimit(0.0, 0.0, 0.0, 0.0)
+        self.switch_control_joint(True)
+
+    def switch_control_joint(self, state):
+        _world = self.app.world.getBulletDynamicsWorld()
+        if state:
+            _world.addConstraint(self.control_joint)
+        else:
+            _world.removeConstraint(self.control_joint)
+
+    def fit_to_skeleton(self):
+        _pos = self.parent_node.getOrientation() * (
+            self.phantom._getDerivedPosition()
+        )
+        _pos = _pos + self.parent_node.getPosition()
+
+        _rot = self.phantom._getDerivedOrientation() * \
+            self.ogre_global_bind_orientation.Inverse() * \
+            self.physics_bind_orientation_inverse.Inverse()
+
+        _rot = self.parent_node.getOrientation() * _rot
+        self.dummy.setPosition(_pos)
+        self.dummy.setOrientation(_rot)
+
+    def fit_to_ragdoll(self):
+        _node_rotation_inverse = self.parent_node.getOrientation().Inverse()
+
+        _physics_rotation = self.getOrientation() * \
+            self.physics_bind_orientation_inverse
+        _parent_inverse = \
+            self.bone.getParent()._getDerivedOrientation().Inverse() * \
+            _node_rotation_inverse
+        _ogre_global_quat = \
+            _physics_rotation * self.ogre_global_bind_orientation
+
+        self.bone.setOrientation(_parent_inverse * _ogre_global_quat)
+
+    def getLinkPos(self):
+        return -self.offset
+
+    def getWorldLinkPos(self):
+        return self.getPosition() + self.getOrientation() * self.getLinkPos()
+
+    def getJointPos(self, link_pos):
+        _res = self.getOrientation().Inverse() * (link_pos - self.getPosition())
+        return _res
+
+    def getPosition(self):
+        return self.ph_body.getWorldPosition()
+
+    def getOrientation(self):
+        return self.ph_body.getWorldOrientation()
+
+    def getTransform(self):
+        return self.ph_body.getBulletRigidBody().getWorldTransform()
+
+    def addConstraintRef(self, constraint):
+        self.ph_body.getBulletRigidBody().addConstraintRef(
+            constraint.getBulletTypedConstraint()
+        )
 
 
 class Ragdoll(object):
     """Character ragdoll body"""
 
-    def __init__(self, app, ragdoll_file, entity, anim_state, node):
+    def __init__(self, app, ragdoll_file, entity, phantom, node):
         self.app = app
         self.entity = entity
-        self.anim_state = anim_state
-        self.anim_state.createBlendMask(self.entity.getSkeleton().getNumBones())
+        self.phantom = phantom
         self.node = node
 
         self.bone_binds = {}
         self.parts = {}
         self.joints = {}
+
+        self.reset_bones()
 
         _config = yaml.load(file(ragdoll_file))
         self.root_part = _config["root_part"]
@@ -63,12 +212,19 @@ class Ragdoll(object):
         self.load_parts(_config["parts"])
         self.load_joints(_config["joints"])
 
+    def reset_bones(self):
+        _bone_iter = self.entity.getSkeleton().getBoneIterator()
+        while _bone_iter.hasMoreElements():
+            _bone = _bone_iter.getNext()
+            _bone.setManuallyControlled(True)
+            _bone.reset()
+
     def load_parts(self, p_config):
         for _part_name, _part_data in p_config.items():
             _part = RagdollPart(
-                _part_name, self.app, _part_data,
+                _part_name, self.app, _part_data, self.node,
                 self.entity.getSkeleton().getBone(_part_data["bone"]),
-                self.node._getDerivedPosition()
+                self.phantom.getSkeleton().getBone(_part_data["bone"]),
             )
             self.parts[_part_name] = _part
             self.bone_binds[_part_data["bone"]] = _part
@@ -76,24 +232,30 @@ class Ragdoll(object):
     def create_cone_twist(self, config):
         _partA = self.parts[config["partA"]]
         _partB = self.parts[config["partB"]]
+
+        _joint_pos = _partA.getJointPos(_partB.getWorldLinkPos())
+        _rot = (_partA.getOrientation().Inverse() * _partB.getOrientation()) \
+            * Ogre.Quaternion(0, 0, 0, 1)
+
         _joint = OgreBulletD.ConeTwistConstraint(
             _partA.ph_body,
             _partB.ph_body,
-            Ogre.Vector3(*config["pointA"]),
-            _partA.bone._getDerivedOrientation(),
-            Ogre.Vector3(*config["pointB"]),
-            _partB.bone._getDerivedOrientation(),
+            _joint_pos, _rot,
+            _partB.getLinkPos(), Ogre.Quaternion(0, 0, 0, 1),
         )
+        _partA.addConstraintRef(_joint)
+        _partB.addConstraintRef(_joint)
         return _joint
 
     def create_fixed_joint(self, config):
         _joint = self.create_cone_twist(config)
-        _joint.setLimit(0.04, 0.04, 0.04)
+        _joint.getBulletTypedConstraint().setLimit(0.0, 0.0, 0.0)
         return _joint
 
     def create_rotating_joint(self, config):
         _joint = self.create_cone_twist(config)
-        _joint.setLimit(0.5, 0.5, 0.5)
+        _joint.getBulletTypedConstraint().setLimit(0.5, 0.5, 0.5)
+        #_joint.getBulletTypedConstraint().setLimit(0.0, 0.0, 0.0)
         return _joint
 
     def load_joints(self, j_config):
@@ -106,119 +268,20 @@ class Ragdoll(object):
             self.app.world.addConstraint(_joint)
             self.joints[_joint_name] = _joint
 
-    def get_fit_to_skeleton(self, part):
-        _pos = self.node.getOrientation() * (
-            part.bone._getDerivedPosition()
-        )
-        _pos = _pos + self.node.getPosition()
-
-        _rot = part.bone._getDerivedOrientation() * \
-            part.ogre_global_bind_orientation.Inverse() * \
-            part.physics_bind_orientation_inverse.Inverse()
-
-        #part.ph_body.setPosition(_pos)
-        #part.ph_body.setOrientation(self.node.getOrientation() * _rot)
-        return (_pos, self.node.getOrientation() * _rot)
-
-    def fit_to_ragdoll(self, part):
-        _node_rotation_inverse = self.node.getOrientation().Inverse()
-
-        _physics_rotation = part.ph_body.getWorldOrientation() * \
-            part.physics_bind_orientation_inverse
-        _parent_inverse = \
-            part.bone.getParent()._getDerivedOrientation().Inverse() * \
-            _node_rotation_inverse
-        _ogre_global_quat = \
-            _physics_rotation * part.ogre_global_bind_orientation
-
-        part.bone.setOrientation(_parent_inverse * _ogre_global_quat)
-
-        #for _part in self.parts.values():
-        #    _part.bone._setDerivedOrientation(
-        #        _part.ph_body.getWorldOrientation()
-        #    )
-
-    def update_animation(self):
-        _bone_iter = self.entity_phantom.getSkeleton().getBoneIterator()
-
-        while _bone_iter.hasMoreElements():
-            _source_bone = _bone_iter.getNext()
-            _name = _source_bone.getName()
-            _target_bone = self.entity.getSkeleton().getBone(_name)
-
-            if _name in self.bone_binds:
-                _cur_pos = _target_bone._getDerivedPosition()
-                _target_pos = _source_bone._getDerivedPosition()
-
-                self.bone_binds[_name].ph_body.applyImpulse(
-                    (_target_pos - _cur_pos) * 10, Ogre.Vector3(0, 0, 0)
-                )
-            else:
-                _target_bone.setOrientation(_source_bone.getOrientation())
-
-    def set_skeleton_mode(self, active):
-        self.skeleton_mode = active
-
-        for (_part_name, _part) in self.parts.items():
-            _part.ph_body.setKinematicObject(active)
-            #if _part_name == "waist":
-            #    _part.ph_body.setKinematicObject(True)
-            #else:
-            #    _part.ph_body.setKinematicObject(False)
+    def update_pre_physics(self):
+        for _part in self.bone_binds.values():
+            _part.fit_to_skeleton()
 
         _bone_iter = self.entity.getSkeleton().getBoneIterator()
         while _bone_iter.hasMoreElements():
             _bone = _bone_iter.getNext()
-            _bone.setManuallyControlled(not active)
-            _bone.reset()
 
-    def fit_animated_bone(self, bone):
-        bone.setManuallyControlled(True)
-        bone.reset()
-        self.anim_state.setBlendMaskEntry(bone.getHandle(), 1)
+            if _bone.getName() not in self.bone_binds:
+                _source_bone = \
+                    self.phantom.getSkeleton().getBone(_bone.getName())
+                _bone.setPosition(_source_bone.getPosition())
+                _bone.setOrientation(_source_bone.getOrientation())
 
-    def fit_ragdolled_bone(self, bone):
-        _part = self.bone_binds[bone.getName()]
-
-        EQUAL_DELTA = 0
-
-        (_skel_pos, _skel_rot) = self.get_fit_to_skeleton(_part)
-        (_cur_pos, _cur_rot) = \
-            _part.ph_body.getWorldPosition(), _part.ph_body.getWorldOrientation()
-
-        _pos_diff = _skel_pos - _cur_pos
-        if False:#_pos_diff.length() > EQUAL_DELTA:
-            bone.setManuallyControlled(False)
-            bone.reset()
-            self.anim_state.setBlendMaskEntry(bone.getHandle(), 1)
-
-            _part.ph_body.setKinematicObject(True)
-            _part.ph_body.setPosition(_skel_pos)
-            _part.ph_body.setOrientation(_skel_rot)
-        else:
-
-            bone.setManuallyControlled(True)
-            bone.reset()
-            self.anim_state.setBlendMaskEntry(bone.getHandle(), 0)
-
-            if _part.name == "thigh_r":
-                _part.ph_body.setKinematicObject(True)
-            else:
-                _part.ph_body.setKinematicObject(False)
-            #_part.ph_body.applyForce(_pos_diff, Ogre.Vector3(0, 0, 0))
-            self.fit_to_ragdoll(_part)
-
-    def update(self, time):
-        _bone_iter = self.entity.getSkeleton().getBoneIterator()
-        while _bone_iter.hasMoreElements():
-            _bone = _bone_iter.getNext()
-
-            if _bone.getName() in self.bone_binds:
-                self.fit_ragdolled_bone(_bone)
-            else:
-                self.fit_animated_bone(_bone)
-
-        self.node.setPosition(
-            self.parts[self.root_part].ph_body.getWorldPosition() + \
-                self.root_offset
-        )
+    def update_post_physics(self):
+        for _part in self.bone_binds.values():
+            _part.fit_to_ragdoll()

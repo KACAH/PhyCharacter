@@ -3,6 +3,7 @@ from ogre.physics import bullet
 from ogre.physics import OgreBulletC, OgreBulletD
 
 from config import Application
+from collision_masks import *
 from frame_listener import RagdollFrameListener
 
 
@@ -68,13 +69,14 @@ class RagdollApplication(Application):
         )
 
         _ent = self.sceneManager.createEntity("Floor", "FloorPlane")
-        _ent.setMaterialName("Examples/BumpyMetal")
+        _ent.setMaterialName("Examples/GrassFloor")
         self.sceneManager.getRootSceneNode()\
             .createChildSceneNode().attachObject(_ent)
 
         self.plane_shape = \
             OgreBulletC.StaticPlaneCollisionShape(Ogre.Vector3(0, 1, 0), 0)
-        self.plane_body = OgreBulletD.RigidBody("BasePlane", self.world)
+        self.plane_body = OgreBulletD.RigidBody("BasePlane", self.world,
+            WORLD_MASK, WORLD_COLLIDE_WITH)
         self.plane_body.setStaticShape(self.plane_shape, 0.1, 0.8)
 
     def _createScene(self):

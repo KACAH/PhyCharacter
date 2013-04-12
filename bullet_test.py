@@ -3,4 +3,10 @@ from ogre.physics import bullet
 from ogre.physics import OgreBulletC, OgreBulletD
 
 
-print dir(OgreBulletD)
+print "bullet: \n", dir(bullet), "\n"
+print "BulletC: \n", dir(OgreBulletC), "\n"
+print "BulletD: \n", dir(OgreBulletD), "\n"
+
+print "\n\n"
+
+print dir(OgreBulletD.ConeTwistConstraint)

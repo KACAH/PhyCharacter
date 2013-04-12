@@ -2,6 +2,7 @@ import random, sys
 from math import *
 
 import ogre.renderer.OGRE as Ogre
+from ogre.io import OIS
 from ogre.physics import bullet
 from ogre.physics import OgreBulletC, OgreBulletD
 
@@ -20,19 +21,16 @@ class RagdollFrameListener(FrameListener):
 
         self.app = app
         self.boxes = []
-        self.create_boxes()
+        # create test boxes if neccessary
+        #self.create_boxes()
         self.character = Character(self.app)
 
     def create_boxes(self):
         """Create couple of boxes"""
 
-        _scale = 10
+        _scale_factor = 0.1
         for _i in xrange(BOX_NUM):
-            _size = Ogre.Vector3(
-                (random.random() * 0.5 + 0.1) * _scale,
-                (random.random() * 0.5 + 0.1) * _scale,
-                (random.random() * 0.5 + 0.1) * _scale
-            )
+            _scale = (random.random() * 0.5 + 0.1) * _scale_factor
             _position = Ogre.Vector3((random.random() - 0.5) * 800.0,
                 (random.random()) * 500.0,
                 (random.random() - 0.5) * 800.0
@@ -40,13 +38,13 @@ class RagdollFrameListener(FrameListener):
             _quat = Ogre.Quaternion(0, 0, 0, 1)
             self.boxes.append(
                 self.create_box(str(_i), "Cube",
-                    _position, _quat, _size, bodyMass=100
+                    _position, _quat, _scale, bodyMass=100
                 )
             )
 
-    def create_box(self, id, instanceName, pos, quat, size,
-        mesh = "WoodPallet.mesh", material = "WoodPallet",
-        bodyRestitution=0.1, bodyFriction=0.1, bodyMass=10.0):
+    def create_box(self, id, instanceName, pos, quat, scale,
+        mesh = "cube.mesh", material = "Examples/BumpyMetal",
+        bodyRestitution=0.3, bodyFriction=0.3, bodyMass=10.0):
         """Create one box element"""
 
         _entity = self.app.sceneManager.createEntity(
@@ -56,27 +54,38 @@ class RagdollFrameListener(FrameListener):
         _entity.setCastShadows(True)
         _entity.setMaterialName(material)
 
-        _cube_shape = OgreBulletC.BoxCollisionShape(size)
+        _boundingB = _entity.getBoundingBox()
+        _size = _boundingB.getSize()
+        _size /= 2.0 # only the half needed
+        #_size *= 0.95 # Bullet margin is a bit bigger so we need a smaller size
+        #_size *= scale
 
+        _cube_shape = OgreBulletC.BoxCollisionShape(_size)
         _ph_body = OgreBulletD.RigidBody(
             instanceName + "Body" + id, self.app.world
         )
 
         _node = self.app.sceneManager.getRootSceneNode().createChildSceneNode()
+        #_node.scale(scale, scale, scale)
         _ph_body.setShape(_node, _cube_shape,
             bodyRestitution, bodyFriction, bodyMass,
             pos, quat
         )
-
         _node.attachObject(_entity)
         return (_node, _entity, _cube_shape, _ph_body)
 
     def frameStarted(self, evt):
+        self.character.update_pre_physics(evt.timeSinceLastFrame)
         self.app.world.stepSimulation(evt.timeSinceLastFrame)
-
-        self.character.update(evt.timeSinceLastFrame)
+        self.character.update_post_physics(evt.timeSinceLastFrame)
 
         return FrameListener.frameStarted(self, evt)
 
     def frameEnded(self, evt):
         return FrameListener.frameEnded(self, evt)
+
+    def _processUnbufferedKeyInput(self, evt):
+        if self.Keyboard.isKeyDown(OIS.KC_SPACE):
+            pass
+
+        return FrameListener._processUnbufferedKeyInput(self, evt)

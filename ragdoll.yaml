@@ -1,5 +1,5 @@
 root_part: waist
-root_offset: [0, 0.7, 0]
+root_offset: [0, 0.4, 0]
 
 parts:
     waist:
@@ -8,6 +8,7 @@ parts:
         width: 1
         depth: 0.6
         mass: 1
+        offset: [0, -0.5, 0]
 
     stomach:
         bone: Stomach
@@ -15,6 +16,7 @@ parts:
         width: 0.9
         depth: 0.6
         mass: 1
+        offset: [0, 0, -0.2]
 
     chest:
         bone: Chest
@@ -22,6 +24,7 @@ parts:
         width: 1.1
         depth: 0.7
         mass: 1
+        offset: [0, 0.5, -0.2]
 
     neck:
         bone: Neck
@@ -29,6 +32,7 @@ parts:
         width: 0.5
         depth: 0.5
         mass: 0.1
+        offset: [0, 0, -0.2]
 
     head:
         bone: Head
@@ -36,31 +40,32 @@ parts:
         width: 0.5
         depth: 0.5
         mass: 0.1
+        offset: [0, 0, -0.3]
 
     humerus_r:
         bone: Humerus.R
-        height: 1
+        height: 0.9
         width: 0.5
         depth: 0.5
         mass: 0.2
 
     humerus_l:
         bone: Humerus.L
-        height: 1
+        height: 0.9
         width: 0.5
         depth: 0.5
         mass: 0.2
 
     ulna_r:
         bone: Ulna.R
-        height: 0.5
+        height: 0.6
         width: 0.5
         depth: 0.5
         mass: 0.1
 
     ulna_l:
         bone: Ulna.L
-        height: 0.5
+        height: 0.6
         width: 0.5
         depth: 0.5
         mass: 0.1
@@ -144,7 +149,7 @@ joints:
         pointB: [0, -0.2, 0]
 
     neck_head:
-        type: fixed
+        type: rotating
         partA: neck
         partB: head
         pointA: [0, 0.2, 0]
