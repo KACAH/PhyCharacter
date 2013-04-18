@@ -12,6 +12,41 @@ CAMERA_POSITION = (0, 5, -470)
 GRAVITY = Ogre.Vector3(0, -9.81, 0)
 
 
+class Wall(object):
+    id = 0
+
+    def __init__(self, app, pos, quat,
+        mesh = "cube.mesh", material = "Examples/BumpyMetal",
+        bodyRestitution=0.3, bodyFriction=0.3):
+
+        self.app = app
+        self.entity = self.app.sceneManager.createEntity(
+            "Wall" + str(self.id), mesh
+        )
+        self.entity.setQueryFlags(1<<2)
+        self.entity.setCastShadows(True)
+        self.entity.setMaterialName(material)
+
+        _boundingB = self.entity.getBoundingBox()
+        _size = _boundingB.getSize()
+        _size /= 2.0 # only the half needed
+        #_size *= 0.95 # Bullet margin is a bit bigger so we need a smaller size
+
+        self.cube_shape = OgreBulletC.BoxCollisionShape(_size)
+        self.ph_body = OgreBulletD.RigidBody(
+            "WallBody" + str(self.id), self.app.world
+        )
+
+        self.node = \
+            self.app.sceneManager.getRootSceneNode().createChildSceneNode()
+        self.ph_body.setShape(self.node, self.cube_shape,
+            bodyRestitution, bodyFriction, 0,
+            pos, quat
+        )
+        self.node.attachObject(self.entity)
+        self.id += 1
+
+
 class RagdollApplication(Application):
 
     def create_camera(self):
@@ -79,11 +114,19 @@ class RagdollApplication(Application):
             WORLD_MASK, WORLD_COLLIDE_WITH)
         self.plane_body.setStaticShape(self.plane_shape, 0.1, 0.8)
 
+    def create_walls(self):
+        """Create testing walls"""
+
+        #self.wall1 = Wall(
+        #    self, Ogre.Vector3(53, 0, 0), Ogre.Quaternion(0, 0, 0, 1)
+        #)
+
     def _createScene(self):
         self.create_camera()
         self.create_sky()
         self.create_physics_world()
         self.create_floor()
+        self.create_walls()
 
     def _createFrameListener(self):
         self.frameListener = \

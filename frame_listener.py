@@ -11,10 +11,16 @@ from ragdoll.character import Character
 
 
 BOX_NUM = 1000
+BOX_SCALE = 0.02
+BOX_MASS = 4.0
+
+TIME_SCALE = 0.3
 
 
 class RagdollFrameListener(FrameListener):
     """Frame updater"""
+
+    id = 0
 
     def __init__(self, renderWindow, camera, app):
         FrameListener.__init__(self, renderWindow, camera)
@@ -24,6 +30,7 @@ class RagdollFrameListener(FrameListener):
         # create test boxes if neccessary
         #self.create_boxes()
         self.character = Character(self.app)
+        self.shot_cooldown = 0
 
     def create_boxes(self):
         """Create couple of boxes"""
@@ -75,9 +82,14 @@ class RagdollFrameListener(FrameListener):
         return (_node, _entity, _cube_shape, _ph_body)
 
     def frameStarted(self, evt):
-        self.character.update_pre_physics(evt.timeSinceLastFrame)
-        self.app.world.stepSimulation(evt.timeSinceLastFrame)
-        self.character.update_post_physics(evt.timeSinceLastFrame)
+        if self.shot_cooldown > 0:
+            self.shot_cooldown -= evt.timeSinceLastFrame
+
+        _time = evt.timeSinceLastFrame * TIME_SCALE
+
+        self.character.update_pre_physics(_time)
+        self.app.world.stepSimulation(_time)
+        self.character.update_post_physics(_time)
 
         return FrameListener.frameStarted(self, evt)
 
@@ -85,7 +97,42 @@ class RagdollFrameListener(FrameListener):
         return FrameListener.frameEnded(self, evt)
 
     def _processUnbufferedKeyInput(self, evt):
-        if self.Keyboard.isKeyDown(OIS.KC_SPACE):
-            pass
+        if self.Keyboard.isKeyDown(OIS.KC_SPACE) and self.shot_cooldown <= 0:
+            # starting position of the box
+            _position = (self.app.camera.getDerivedPosition() \
+                + self.app.camera.getDerivedDirection().normalisedCopy() * 10)
+            # create an ordinary, Ogre mesh with texture
+            _entity = self.app.sceneManager.createEntity(
+               "Box" + str(self.id), "cube.mesh")
+            _entity.setCastShadows(True)
+            # we need the bounding box of the box to be able to set the size of the Bullet-box
+            _boundingB = _entity.getBoundingBox()
+            _size = _boundingB.getSize()
+            _size /= 2.0 # only the half needed
+            _size *= 0.96   # Bullet margin is a bit bigger so we need a smaller size
+                              # (Bullet 2.76 Physics SDK Manual page 18)
+            _entity.setMaterialName("Examples/BumpyMetal")
+            _node = self.app.sceneManager.getRootSceneNode().createChildSceneNode()
+            _node.attachObject(_entity)
+            _node.scale(BOX_SCALE, BOX_SCALE, BOX_SCALE)
+            _size *= BOX_SCALE                  # don't forget to scale down the Bullet-box too
+            # after that create the Bullet shape with the calculated size
+            _sceneBoxShape = OgreBulletC.BoxCollisionShape(_size)
+            # and the Bullet rigid body
+            _defaultBody = OgreBulletD.RigidBody(
+               "defaultBoxRigid" + str(self.id), self.app.world
+            )
+            _defaultBody.setShape(
+                _node, _sceneBoxShape,
+                0.6, 0.6, BOX_MASS,
+                _position, Ogre.Quaternion(0, 0, 0, 1)
+            )
+            _defaultBody.setLinearVelocity(
+                  self.app.camera.getDerivedDirection().normalisedCopy() * 70.0
+            )
+            # push the created objects to the deques
+            self.boxes.append((_entity, _node, _sceneBoxShape, _defaultBody))
+            self.id += 1
+            self.shot_cooldown = 2
 
         return FrameListener._processUnbufferedKeyInput(self, evt)

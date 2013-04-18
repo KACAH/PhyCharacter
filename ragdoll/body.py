@@ -245,16 +245,24 @@ class Ragdoll(object):
         )
         _partA.addConstraintRef(_joint)
         _partB.addConstraintRef(_joint)
+
+        _btJoint = _joint.getBulletTypedConstraint()
+        #_btJoint.setLimit(
+        #    _btJoint.getSwingSpan1(),
+        #    _btJoint.getSwingSpan2(),
+        #    _btJoint.getTwistSpan(),
+        #    0.01, 0.01, 0.01
+        #)
         return _joint
 
     def create_fixed_joint(self, config):
         _joint = self.create_cone_twist(config)
-        _joint.getBulletTypedConstraint().setLimit(0.0, 0.0, 0.0)
+        #_joint.getBulletTypedConstraint().setLimit(0.0, 0.0, 0.0)
         return _joint
 
     def create_rotating_joint(self, config):
         _joint = self.create_cone_twist(config)
-        _joint.getBulletTypedConstraint().setLimit(0.5, 0.5, 0.5)
+        #_joint.getBulletTypedConstraint().setLimit(0.5, 0.5, 0.5)
         #_joint.getBulletTypedConstraint().setLimit(0.0, 0.0, 0.0)
         return _joint
 

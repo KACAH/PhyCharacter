@@ -5,8 +5,8 @@ from body import Ragdoll
 
 MESH = "Sinbad.mesh"
 RAGDOLL_FILE = "ragdoll.yaml"
-ANIMATION = "Dance"
-POSITION = (0, 10, 0)#(0, 5, 0)
+ANIMATION = "RunBase"
+POSITION = (0, 5, 0)
 
 
 class Character(object):
@@ -29,7 +29,6 @@ class Character(object):
         self.phantom_node = self.node.createChildSceneNode()
         self.phantom_node.attachObject(self.phantom_ent)
         self.phantom_node.scale(0.01, 0.01, 0.01)
-
 
     def create_mesh(self):
         """Create visual mesh"""
