@@ -117,9 +117,9 @@ class RagdollApplication(Application):
     def create_walls(self):
         """Create testing walls"""
 
-        #self.wall1 = Wall(
-        #    self, Ogre.Vector3(53, 0, 0), Ogre.Quaternion(0, 0, 0, 1)
-        #)
+        self.wall1 = Wall(
+            self, Ogre.Vector3(53, 0, 0), Ogre.Quaternion(0, 0, 0, 1)
+        )
 
     def _createScene(self):
         self.create_camera()

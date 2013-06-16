@@ -12,9 +12,9 @@ from ragdoll.character import Character
 
 BOX_NUM = 1000
 BOX_SCALE = 0.02
-BOX_MASS = 4.0
+BOX_MASS = 20.0
 
-TIME_SCALE = 0.3
+TIME_SCALE = 0.1
 
 
 class RagdollFrameListener(FrameListener):
